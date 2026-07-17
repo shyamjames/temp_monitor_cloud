@@ -67,7 +67,6 @@ python app.py
 Open your web browser and go to [http://127.0.0.1:5000](http://127.0.0.1:5000) to view the dashboard. The chart and table will automatically fetch new readings every 5 seconds.
 
 ## Features Included
-- Clean and modern Dashboard UI (Glassmorphism inspired, dynamic colors).
 - Real-time polling `/api/data` every 5 seconds updating DOM + Chart without page reloads.
 - Date range filtering (automatically stops live polling when viewing historical slices).
 - CSV export capability to download filtered or all available records.
