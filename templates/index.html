@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Temperature Dashboard</title>
+    <!-- Fonts matching Claude Design System -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            /* Light (Cream Canvas) Mode - Default */
+            --canvas: #faf9f5;
+            --ink: #141413;
+            --body: #3d3d3a;
+            --primary: #cc785c;
+            --primary-active: #a9583e;
+            --surface-card: #efe9de;
+            --surface-dark: #181715;
+            --surface-dark-elevated: #252320;
+            --on-dark: #faf9f5;
+            --on-dark-soft: #a09d96;
+            --hairline: #e6dfd8;
+            --muted: #6c6a64;
+            --success: #5db872;
+            --error: #c64545;
+            --warn: #d4a017;
+            
+            --font-display: "Cormorant Garamond", "Tiempos Headline", "Times New Roman", serif;
+            --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-code: "JetBrains Mono", ui-monospace, monospace;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Mode Overrides */
+            --canvas: #141413;
+            --ink: #faf9f5;
+            --body: #a09d96;
+            --surface-card: #1f1e1b;
+            --surface-dark: #faf9f5;
+            --surface-dark-elevated: #e6dfd8;
+            --on-dark: #141413;
+            --on-dark-soft: #3d3d3a;
+            --hairline: #3d3d3a;
+            --muted: #8e8b82;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--canvas);
+            color: var(--ink);
+            margin: 0;
+            padding: 40px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        h1, h2, h3 {
+            font-family: var(--font-display);
+            font-weight: 400;
+            margin: 0;
+            color: var(--ink);
+        }
+
+        h1 {
+            font-size: 48px;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        h2 {
+            font-size: 28px;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        button, .btn {
+            font-family: var(--font-body);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 12px 20px;
+            border-radius: 8px; /* rounded.md */
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            height: 40px;
+            box-sizing: border-box;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-active);
+        }
+
+        .btn-secondary {
+            background-color: var(--canvas);
+            color: var(--ink);
+            border: 1px solid var(--hairline);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--surface-card);
+        }
+
+        .card {
+            background-color: var(--surface-card);
+            border-radius: 12px; /* rounded.lg */
+            padding: 32px;
+            border: 1px solid var(--hairline);
+            margin-bottom: 32px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .latest-temp {
+            font-family: var(--font-display);
+            font-size: 64px;
+            font-weight: 400;
+            letter-spacing: -1.5px;
+            color: var(--primary);
+            margin: 16px 0;
+            line-height: 1.05;
+        }
+
+        .latest-label {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--muted);
+            font-family: var(--font-body);
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        input[type="date"] {
+            font-family: var(--font-body);
+            background-color: var(--canvas);
+            color: var(--ink);
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            padding: 10px 14px;
+            height: 40px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+
+        input[type="date"]:focus {
+            border-color: var(--primary);
+        }
+
+        .chart-container {
+            height: 400px;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 16px 24px;
+            text-align: left;
+            border-bottom: 1px solid var(--hairline);
+            transition: border-color 0.3s ease;
+        }
+
+        th {
+            font-weight: 500;
+            color: var(--muted);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--hairline);
+            color: var(--ink);
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%; /* rounded.full */
+        }
+        .theme-toggle:hover {
+            background: var(--surface-card);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IoT Dashboard</h1>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Dark Mode">
+                    <!-- Moon Icon -->
+                    <svg id="themeIcon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+                <a href="/export" id="exportBtn" class="btn btn-secondary">
+                    Export CSV
+                </a>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <div class="card">
+                <div class="latest-label">Current Reading</div>
+                <div class="latest-temp" id="currentTemp">-- °C</div>
+                <div id="currentTime" style="color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="timeText">Waiting for data...</span>
+                    <span id="connectionStatus" style="font-family: var(--font-code); font-size: 12px; color: var(--muted); border-left: 1px solid var(--hairline); padding-left: 8px;">Initializing...</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="startDate">From</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="endDate">To</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Temperature History</h2>
+                <div class="chart-container" style="margin-top: 24px;">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 style="margin-bottom: 24px;">Recent Readings</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Temperature</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="3" style="text-align: center; color: var(--muted);">Loading data...</td></tr>
+                    </tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let tempChart;
+        let isPolling = true;
+        let fetchInterval;
+        let currentTheme = localStorage.getItem('theme') || 'light';
+
+        // Apply initial theme
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                currentTheme = 'light';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                currentTheme = 'dark';
+            }
+            updateThemeIcon();
+            if (tempChart) updateChartColors();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('themeIcon');
+            if (currentTheme === 'dark') {
+                // Sun icon
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>';
+            } else {
+                // Moon icon
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>';
+            }
+        }
+
+        function getChartColors() {
+            const isDark = currentTheme === 'dark';
+            return {
+                grid: isDark ? '#3d3d3a' : '#e6dfd8',
+                text: isDark ? '#a09d96' : '#6c6a64',
+                line: '#cc785c', // Coral accent
+                fill: 'rgba(204, 120, 92, 0.1)'
+            };
+        }
+
+        function updateChartColors() {
+            const colors = getChartColors();
+            tempChart.options.scales.x.grid.color = colors.grid;
+            tempChart.options.scales.y.grid.color = colors.grid;
+            tempChart.options.scales.x.ticks.color = colors.text;
+            tempChart.options.scales.y.ticks.color = colors.text;
+            tempChart.update();
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.innerText = message;
+            
+            if (type === 'error') {
+                statusEl.style.color = 'var(--error)';
+            } else if (type === 'warn') {
+                statusEl.style.color = 'var(--warn)';
+            } else if (type === 'success') {
+                statusEl.style.color = 'var(--success)';
+            } else {
+                statusEl.style.color = 'var(--muted)';
+            }
+        }
+        
+        function initChart() {
+            updateStatus('Initializing chart...', 'info');
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            const colors = getChartColors();
+            
+            tempChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [],
+                        borderColor: colors.line,
+                        backgroundColor: colors.fill,
+                        borderWidth: 2,
+                        pointBackgroundColor: colors.line,
+                        pointBorderColor: 'transparent',
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        tension: 0.2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#181715',
+                            titleColor: '#faf9f5',
+                            bodyColor: '#cc785c',
+                            borderColor: '#3d3d3a',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: colors.grid, drawBorder: false },
+                            ticks: { color: colors.text, padding: 10 }
+                        },
+                        x: {
+                            grid: { color: colors.grid, drawBorder: false },
+                            ticks: { color: colors.text, maxTicksLimit: 12, padding: 10 }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                }
+            });
+            updateStatus('Chart initialized', 'success');
+        }
+
+        async function fetchData(start = '', end = '') {
+            let url = '/api/data';
+            const params = new URLSearchParams();
+            if (start) params.append('start_date', start);
+            if (end) params.append('end_date', end);
+            
+            const queryString = params.toString();
+            if (queryString) url += `?${queryString}`;
+            
+            updateStatus('Connecting to API...', 'info');
+            
+            try {
+                const dot = document.getElementById('statusDot');
+                dot.style.opacity = '0.3';
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                
+                updateStatus(`Connected (Received ${data.length} records)`, 'success');
+                updateDashboard(data);
+                
+                setTimeout(() => dot.style.opacity = '1', 300);
+                document.getElementById('exportBtn').href = `/export${queryString ? '?' + queryString : ''}`;
+            } catch (error) {
+                updateStatus(`Connection failed: ${error.message}`, 'error');
+                document.getElementById('statusDot').style.backgroundColor = 'var(--error)';
+                const timeText = document.getElementById('timeText');
+                if (timeText.innerText === 'Waiting for data...') {
+                    timeText.innerText = 'Connection error';
+                }
+            }
+        }
+
+        function updateDashboard(data) {
+            if (!data || data.length === 0) {
+                updateStatus('Database is empty', 'warn');
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--muted);">No records found.</td></tr>';
+                return;
+            }
+            
+            const latest = data[0];
+            document.getElementById('currentTemp').innerText = `${latest.temperature} °C`;
+            
+            document.getElementById('timeText').innerText = `Last updated: ${latest.date} ${latest.time}`;
+            document.getElementById('statusDot').style.backgroundColor = 'var(--success)';
+            
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            data.slice(0, 20).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.date}</td>
+                    <td>${row.time}</td>
+                    <td style="font-weight: 500;">${row.temperature}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const chartData = [...data].slice(0, 50).reverse();
+            tempChart.data.labels = chartData.map(d => d.time);
+            tempChart.data.datasets[0].data = chartData.map(d => d.temperature);
+            tempChart.update();
+        }
+
+        function applyFilters() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            
+            updateStatus(`Filter applied: ${start || 'any'} to ${end || 'any'}`, 'warn');
+            
+            if (start || end) {
+                clearInterval(fetchInterval);
+                isPolling = false;
+                document.getElementById('statusDot').style.backgroundColor = 'var(--warn)';
+                document.getElementById('timeText').innerText = 'Viewing historical data (Live updates paused)';
+            }
+            fetchData(start, end);
+        }
+        
+        function clearFilters() {
+            updateStatus('Clearing filters...', 'info');
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            fetchData();
+            
+            if (!isPolling) {
+                isPolling = true;
+                document.getElementById('statusDot').style.backgroundColor = 'var(--success)';
+                fetchInterval = setInterval(() => fetchData(), 5000);
+            }
+        }
+
+        window.onload = () => {
+            updateStatus('Application loaded', 'info');
+            initChart();
+            fetchData();
+            fetchInterval = setInterval(() => {
+                if (isPolling) {
+                    fetchData();
+                }
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
